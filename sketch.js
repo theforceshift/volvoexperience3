@@ -11,6 +11,7 @@ const PARTICLE_MIN_SPEED = 3;
 const PARTICLE_MAX_SPEED = 10;   
 const PARTICLE_MIN_WEIGHT = 2;  
 const PARTICLE_MAX_WEIGHT = 15; 
+const PARTICLE_JITTER_AMOUNT = 0.05; 
 const FLOW_FIELD_RESOLUTION = 20; 
 const FLOW_FIELD_FORCE = 0.8; 
 const PERLIN_NOISE_SCALE = 0.02;
@@ -56,7 +57,19 @@ const FONT_PATH = 'PlaywriteDKUloopet-Thin.ttf';
 // --- BUTTON CONTROL ---
 const BUTTON_VISIBILITY_TIMEOUT = 12000, BUTTON_SIZE = 60, BUTTON_FADE_SPEED = 0.05, MAX_HOLD_TIME = 3000;
 const BUTTON_COOLDOWN_DURATION = 4000, BUTTON_GROW_SPEED = 0.1, BUTTON_GROW_FACTOR = 2.6;
-const BUTTON_DRAW_SPEED = 0.04, BUTTON_STROKE_WEIGHT = 2;
+const BUTTON_DRAW_SPEED = 0.04; 
+const BUTTON_STROKE_WEIGHT = 2;
+
+// Fill parameters
+const BUTTON_FILL_COLOR_HEX = '#FF5017';      // MÀU FILL CỦA NÚT (HEX)
+const BUTTON_FILL_OPACITY = 100;               // ĐỘ TRONG SUỐT CỦA FILL (0-100)
+let BUTTON_FILL_BLEND_MODE;                   // Khai báo mà không gán giá trị ngay
+
+// NEW Stroke parameters
+const BUTTON_STROKE_COLOR_HEX = '#FF5017';    // <-- THAM SỐ MỚI: MÀU STROKE CỦA NÚT (HEX)
+const BUTTON_STROKE_OPACITY = 80;             // <-- THAM SỐ MỚI: ĐỘ TRONG SUỐT CỦA STROKE (0-100)
+let BUTTON_STROKE_BLEND_MODE;                 // <-- THAM SỐ MỚI: BLENDING MODE CHO STROKE
+
 
 // --- TEXT & MESSAGE CONTROL ---
 const TEXT_FONT_SIZE = 45;
@@ -66,6 +79,8 @@ const TEXT_BREATHING_MIN_SIZE = 2.5;
 const TEXT_BREATHING_MAX_SIZE = 4.0;
 const TEXT_BREATHING_SPEED = 0.002;
 const TEXT_ANIM_MIN_DURATION = 1500, TEXT_ANIM_MAX_DURATION = 4000;
+const TEXT_LINE_SPACING_FACTOR = 1.7; 
+const TEXT_LETTER_SPACING = 3.4; 
 
 // --- VISUAL EFFECTS ---
 const GRAIN_AMOUNT = 0;
@@ -107,8 +122,8 @@ const GRAIN_AMOUNT = 0;
       target.fill(c.h, c.s, c.v, (layer.flow / 100) * alpha);
       target.noStroke();
       for (let j = 0; j < layer.strokes; j++) {
-        let sx = x + (randomGaussian() * layer.jitter * w);
-        let sy = y + (randomGaussian() * layer.jitter * w);
+        let sx = x + (randomGaussian() * layer.jitter * w); 
+        let sy = y + (randomGaussian() * layer.jitter * w); 
         let sw = max(0.1, w + (randomGaussian() * layer.scale * w));
         target.circle(sx, sy, sw);
       }
@@ -124,7 +139,7 @@ function preload() {
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  colorMode(HSB, 360, 100, 100, 100);
+  colorMode(HSB, 360, 100, 100, 100); 
 
   if (messagesTable) {
     for (let r = 0; r < messagesTable.getRowCount(); r++) {
@@ -144,11 +159,20 @@ function setup() {
 }
 
 function setupGraphics() {
-  backgroundColor = color('#F7F2EE'); // <-- MÀU NỀN ĐÃ ĐƯỢC CẬP NHẬT TẠI ĐÂY
+  backgroundColor = color('#F7F2EE'); 
   textColor = color(0, 0, 100); 
   
   textGlowBuffer = createGraphics(width, height);
   textGlowBuffer.colorMode(HSB, 360, 100, 100, 100);
+
+  flowfieldLayer = createGraphics(width, height); 
+  flowfieldLayer.colorMode(HSB, 360, 100, 100, 100); 
+  flowfieldLayer.background(backgroundColor);
+
+  // --- Gán giá trị hằng số p5.js cho các biến blend mode ở đây ---
+  BUTTON_FILL_BLEND_MODE = BLEND; 
+  BUTTON_STROKE_BLEND_MODE = BLEND; // <-- Mặc định là BLEND, bạn có thể thay đổi
+  // Ví dụ: BUTTON_STROKE_BLEND_MODE = MULTIPLY;
 
   setupFlowField();
   
@@ -156,15 +180,11 @@ function setupGraphics() {
 }
 
 function setupFlowField() {
-  flowfieldLayer = createGraphics(width, height);
-  flowfieldLayer.colorMode(HSB, 360, 100, 100, 100);
-  flowfieldLayer.background(backgroundColor);
-
   brush.define('smoothStroke', {
     spacing: 0.3,
     layers: [{ 
       strokes: 3, 
-      jitter: 0.1, 
+      jitter: PARTICLE_JITTER_AMOUNT, 
       scale: 0.2,
       flow: 30 
     }]
@@ -303,7 +323,7 @@ class FlowParticle {
         brush.set('smoothStroke');
         brush.stroke(hue(c), saturation(c), brightness(c), PARTICLE_OPACITY);
         brush.strokeWeight(this.weight);
-        brush.line(this.pos.x, this.pos.y, this.prevPos.x, this.prevPos.y, pg);
+        brush.line(this.pos.x, this.pos.y, this.prevPos.x, this.prevPos.y, pg); 
         this.updatePrev();
     }
 
@@ -373,37 +393,75 @@ function startTextAnimation(holdDuration) {
   textFont(font);
   textSize(TEXT_FONT_SIZE);
   textPoints = [];
-  const maxWidth = width * 0.6;
+  const maxWidth = width * 0.7;
   const words = currentMessage.split(' ');
-  let line = '';
   let lines = [];
+  let currentLineWords = []; 
   
+  // --- Logic ngắt dòng (tính cả letter spacing) ---
   for (let i = 0; i < words.length; i++) {
-    const testLine = line + words[i] + ' ';
-    const testWidth = textWidth(testLine);
-    if (testWidth > maxWidth && i > 0) {
-      lines.push(line);
-      line = words[i] + ' ';
+    const word = words[i];
+    
+    const tempLineForWidth = currentLineWords.join(' ') + (currentLineWords.length > 0 ? ' ' : '') + word;
+    
+    let estimatedWidthWithSpacing = 0;
+    for (let k = 0; k < tempLineForWidth.length; k++) {
+        estimatedWidthWithSpacing += textWidth(tempLineForWidth.charAt(k));
+        if (k < tempLineForWidth.length - 1) { 
+            estimatedWidthWithSpacing += TEXT_LETTER_SPACING;
+        }
+    }
+
+    if (currentLineWords.length > 0 && estimatedWidthWithSpacing > maxWidth) {
+      lines.push(currentLineWords.join(' '));
+      currentLineWords = [word];
     } else {
-      line = testLine;
+      currentLineWords.push(word);
     }
   }
-  lines.push(line);
+  if (currentLineWords.length > 0) {
+    lines.push(currentLineWords.join(' '));
+  }
 
-  const totalTextHeight = lines.length * (TEXT_FONT_SIZE * 1.2);
+  if (lines.length === 0 || (lines.length === 1 && lines[0].trim() === '')) {
+      return; 
+  }
+
+  const totalTextHeight = lines.length * (TEXT_FONT_SIZE * TEXT_LINE_SPACING_FACTOR);
   let startY = height / 2 - 30 - totalTextHeight / 2;
 
+  // --- Logic tạo điểm (áp dụng letter spacing) ---
   for (let i = 0; i < lines.length; i++) {
     const lineStr = lines[i].trim();
-    const lineWidth = textWidth(lineStr);
-    const x = width / 2 - lineWidth / 2;
-    const y = startY + (i * TEXT_FONT_SIZE * 1.2);
     
-    const pointsForLine = font.textToPoints(lineStr, x, y, TEXT_FONT_SIZE, { 
-      sampleFactor: TEXT_SAMPLE_FACTOR, 
-      simplifyThreshold: 0 
-    });
-    textPoints = textPoints.concat(pointsForLine);
+    let actualLineWidth = 0;
+    for (let j = 0; j < lineStr.length; j++) {
+      actualLineWidth += textWidth(lineStr.charAt(j));
+      if (j < lineStr.length - 1) { 
+        actualLineWidth += TEXT_LETTER_SPACING;
+      }
+    }
+
+    const startX = width / 2 - actualLineWidth / 2; 
+    const y = startY + (i * TEXT_FONT_SIZE * TEXT_LINE_SPACING_FACTOR);
+    
+    let currentX = startX;
+    for (let j = 0; j < lineStr.length; j++) {
+      const char = lineStr.charAt(j);
+      
+      if (char === ' ') {
+        currentX += textWidth(char) + TEXT_LETTER_SPACING; 
+        continue;
+      }
+
+      const pointsForChar = font.textToPoints(char, currentX, y, TEXT_FONT_SIZE, { 
+        sampleFactor: TEXT_SAMPLE_FACTOR, 
+        simplifyThreshold: 0 
+      });
+      textPoints = textPoints.concat(pointsForChar);
+      
+      currentX += textWidth(char) + TEXT_LETTER_SPACING;
+    }
   }
   
   textAnimation.duration = map(holdDuration, 0, MAX_HOLD_TIME, TEXT_ANIM_MIN_DURATION, TEXT_ANIM_MAX_DURATION);
@@ -487,16 +545,41 @@ function updateButton() {
 
 function drawButton() {
   if (presenceButton.currentAlpha < 1) return;
-  push();
-  let overallAlpha = presenceButton.currentAlpha;
-  strokeWeight(BUTTON_STROKE_WEIGHT); stroke(0, 0, 0, 80*(overallAlpha/100)); noFill();
-  let endAngle = -HALF_PI + presenceButton.drawProgress * TWO_PI;
-  arc(presenceButton.pos.x, presenceButton.pos.y, presenceButton.currentSize, presenceButton.currentSize, -HALF_PI, endAngle);
-  if (presenceButton.isFullyDrawn) {
-    noStroke(); fill(0, 0, 0, 5 * (overallAlpha/100));
-    circle(presenceButton.pos.x, presenceButton.pos.y, presenceButton.currentSize);
-  }
-  pop();
+
+  push(); // Overall push
+    let overallAlpha = presenceButton.currentAlpha;
+    let buttonPosX = presenceButton.pos.x;
+    let buttonPosY = presenceButton.pos.y;
+    let buttonCurrentSize = presenceButton.currentSize;
+
+    // --- DRAW STROKE (ARC) ---
+    push(); // Push for stroke styling
+      blendMode(BUTTON_STROKE_BLEND_MODE); // Áp dụng blend mode cho stroke
+      strokeWeight(BUTTON_STROKE_WEIGHT); 
+      
+      let strokeColor = color(BUTTON_STROKE_COLOR_HEX); // Lấy màu stroke từ tham số
+      // Tính toán alpha cho stroke dựa trên tham số opacity và overallAlpha
+      let strokeAlpha = map(BUTTON_STROKE_OPACITY, 0, 100, 0, overallAlpha);
+      stroke(hue(strokeColor), saturation(strokeColor), brightness(strokeColor), strokeAlpha); 
+      noFill();
+      
+      let endAngle = -HALF_PI + presenceButton.drawProgress * TWO_PI;
+      arc(buttonPosX, buttonPosY, buttonCurrentSize, buttonCurrentSize, -HALF_PI, endAngle);
+    pop(); // Pop for stroke styling
+
+    // --- DRAW FILL (CIRCLE) ---
+    if (presenceButton.isFullyDrawn) {
+      push(); // Push for fill styling
+        blendMode(BUTTON_FILL_BLEND_MODE); // Áp dụng blend mode cho fill
+        noStroke(); 
+        let fillColor = color(BUTTON_FILL_COLOR_HEX); 
+        let fillAlpha = map(BUTTON_FILL_OPACITY, 0, 100, 0, overallAlpha);
+        fill(hue(fillColor), saturation(fillColor), brightness(fillColor), fillAlpha); 
+        circle(buttonPosX, buttonPosY, buttonCurrentSize);
+      pop(); // Pop for fill styling
+    }
+
+  pop(); // Overall pop
 }
 
 // ---- OPTIMIZED GRAIN FUNCTION ----
