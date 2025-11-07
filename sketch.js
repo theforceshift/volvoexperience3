@@ -1,4 +1,5 @@
 
+
 // let capture; // Motion detection disabled
 // let previousFrame; // Motion detection disabled
 let grainBuffer;
@@ -16,7 +17,8 @@ const FLOW_FIELD_RESOLUTION = 20;
 const FLOW_FIELD_FORCE = 0.8; 
 const PERLIN_NOISE_SCALE = 0.02;
 const PERLIN_TIME_EVOLUTION = 0.009;
-const BACKGROUND_DECAY_RATE = 10;
+const BACKGROUND_DECAY_RATE = 10; // <<-- THAM SỐ NÀY CÓ THỂ CẦN ĐIỀU CHỈNH
+                                 //      Nếu các hạt biến mất quá nhanh, hãy giảm giá trị này (ví dụ: 3-7)
 
 // --- THAM SỐ CHO PARTICLE TƯƠNG TÁC (KHI GIỮ NÚT) ---
 const INTERACTIVE_PARTICLE_COLOR = '#FF5017';
@@ -242,6 +244,8 @@ function spawnInteractiveParticles(count) {
 
 function updateAndDrawFlowFieldBackground() {
     flowfieldLayer.noStroke();
+    // Điều chỉnh giá trị BACKGROUND_DECAY_RATE để kiểm soát tốc độ mờ của các vệt hạt.
+    // Giảm giá trị này sẽ làm các vệt hạt tồn tại lâu hơn.
     flowfieldLayer.fill(hue(backgroundColor), saturation(backgroundColor), brightness(backgroundColor), BACKGROUND_DECAY_RATE);
     flowfieldLayer.rect(0, 0, width, height);
 
@@ -267,6 +271,7 @@ function updateAndDrawFlowFieldBackground() {
     }
     zoff += PERLIN_TIME_EVOLUTION;
 
+    // Cập nhật và vẽ các hạt
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
         p.follow(flowfield);
@@ -278,6 +283,25 @@ function updateAndDrawFlowFieldBackground() {
           particles.splice(i, 1);
         }
     }
+
+    // --- Bổ sung logic để đảm bảo số lượng hạt nền không bị giảm ---
+    let nonInteractiveParticleCount = 0;
+    for (let i = 0; i < particles.length; i++) {
+        if (!particles[i].isInteractive) {
+            nonInteractiveParticleCount++;
+        }
+    }
+
+    // Nếu số lượng hạt nền ít hơn PARTICLE_COUNT, hãy thêm hạt mới
+    while (nonInteractiveParticleCount < PARTICLE_COUNT) {
+        let newParticle = new FlowParticle(false);
+        newParticle.pos.x = -50; // Spawn off-screen to the left to enter smoothly
+        newParticle.pos.y = random(height);
+        newParticle.updatePrev();
+        particles.push(newParticle);
+        nonInteractiveParticleCount++;
+    }
+    // --- Kết thúc logic bổ sung ---
 }
 
 class FlowParticle {
