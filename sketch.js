@@ -1,34 +1,37 @@
 
-
 // let capture; // Motion detection disabled
 // let previousFrame; // Motion detection disabled
 let grainBuffer;
 
 // --- THAM SỐ CHO BACKGROUND ---
-const PARTICLE_COUNT = 250; 
+const PARTICLE_COUNT = 30; 
 const PARTICLE_COLOR_PALETTE = ['#a2d2ff', '#bde0fe', '#6E86F7', '#C6E667', '#062DEC']; 
 const PARTICLE_OPACITY = 100;
-const PARTICLE_MIN_SPEED = 3; 
-const PARTICLE_MAX_SPEED = 10;   
-const PARTICLE_MIN_WEIGHT = 2;  
-const PARTICLE_MAX_WEIGHT = 15; 
-const PARTICLE_JITTER_AMOUNT = 0.05; 
+const PARTICLE_MIN_SPEED = 1; 
+const PARTICLE_MAX_SPEED = 5;   
+const PARTICLE_MIN_WEIGHT = 20;  
+const PARTICLE_MAX_WEIGHT = 150; 
+const PARTICLE_JITTER_AMOUNT = 0; // Jitter vị trí, hiện đang tắt (giá trị 0)
 const FLOW_FIELD_RESOLUTION = 20; 
 const FLOW_FIELD_FORCE = 0.8; 
-const PERLIN_NOISE_SCALE = 0.02;
-const PERLIN_TIME_EVOLUTION = 0.009;
-const BACKGROUND_DECAY_RATE = 10; // <<-- THAM SỐ NÀY CÓ THỂ CẦN ĐIỀU CHỈNH
-                                 //      Nếu các hạt biến mất quá nhanh, hãy giảm giá trị này (ví dụ: 3-7)
+const PERLIN_NOISE_SCALE = 0.1;
+const PERLIN_TIME_EVOLUTION = 0.002;
+const BACKGROUND_DECAY_RATE = 100; 
+
+// --- THAM SỐ ĐIỀU KHIỂN ĐỘ PHẬP PHÙ/NHẤP NHÁY CỦA HẠT NỀN ---
+const PARTICLE_SIZE_VARIATION_ENABLED = false; // Đặt FALSE để tắt hiệu ứng phập phù kích thước
+const PARTICLE_SIZE_VARIATION_FACTOR = 0.2; // Điều chỉnh độ lớn của sự phập phù kích thước (0 = không phập phù, giá trị > 0 để tăng)
+
 
 // --- THAM SỐ CHO PARTICLE TƯƠNG TÁC (KHI GIỮ NÚT) ---
 const INTERACTIVE_PARTICLE_COLOR = '#FF5017';
-const INTERACTIVE_PARTICLE_SPAWN_RATE = 6;
+const INTERACTIVE_PARTICLE_SPAWN_RATE = 3;
 const INTERACTIVE_PARTICLE_SPAWN_DURATION = 2000;
 const INTERACTIVE_SPAWN_LOCATION_RATIO = 0.5;
 const INTERACTIVE_PARTICLE_MIN_SPEED = 5;
 const INTERACTIVE_PARTICLE_MAX_SPEED = 10;
-const INTERACTIVE_PARTICLE_MIN_WEIGHT = 3;
-const INTERACTIVE_PARTICLE_MAX_WEIGHT = 14;
+const INTERACTIVE_PARTICLE_MIN_WEIGHT = 8;
+const INTERACTIVE_PARTICLE_MAX_WEIGHT = 30;
 const MAX_PARTICLE_LIMIT = 600;
 
 // --- Biến cho Flow Field Background ---
@@ -173,8 +176,7 @@ function setupGraphics() {
 
   // --- Gán giá trị hằng số p5.js cho các biến blend mode ở đây ---
   BUTTON_FILL_BLEND_MODE = BLEND; 
-  BUTTON_STROKE_BLEND_MODE = BLEND; // <-- Mặc định là BLEND, bạn có thể thay đổi
-  // Ví dụ: BUTTON_STROKE_BLEND_MODE = MULTIPLY;
+  BUTTON_STROKE_BLEND_MODE = BLEND; 
 
   setupFlowField();
   
@@ -182,12 +184,17 @@ function setupGraphics() {
 }
 
 function setupFlowField() {
+  let brushScaleAmount = 0;
+  if (PARTICLE_SIZE_VARIATION_ENABLED) {
+    brushScaleAmount = PARTICLE_SIZE_VARIATION_FACTOR;
+  }
+
   brush.define('smoothStroke', {
     spacing: 0.3,
     layers: [{ 
       strokes: 3, 
       jitter: PARTICLE_JITTER_AMOUNT, 
-      scale: 0.2,
+      scale: brushScaleAmount, // Sử dụng tham số mới để điều khiển sự phập phù kích thước
       flow: 30 
     }]
   });
@@ -244,8 +251,6 @@ function spawnInteractiveParticles(count) {
 
 function updateAndDrawFlowFieldBackground() {
     flowfieldLayer.noStroke();
-    // Điều chỉnh giá trị BACKGROUND_DECAY_RATE để kiểm soát tốc độ mờ của các vệt hạt.
-    // Giảm giá trị này sẽ làm các vệt hạt tồn tại lâu hơn.
     flowfieldLayer.fill(hue(backgroundColor), saturation(backgroundColor), brightness(backgroundColor), BACKGROUND_DECAY_RATE);
     flowfieldLayer.rect(0, 0, width, height);
 
