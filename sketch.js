@@ -57,7 +57,7 @@ let loadedMessages = [];
 const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0mNWVCtB6splBEobm2KLRHdwadKP-yenf2by4QBT2CRQtosg4YvMTXwef8CWp3GVmksq3SLfV2GYG/pub?output=csv';
 
 // --- FONT SELECTION ---
-const FONT_PATH = 'PlaywriteDKUloopet-Thin.ttf';
+const FONT_PATH = 'OoohBaby-Regular.ttf';
 
 // --- BUTTON CONTROL ---
 const BUTTON_VISIBILITY_TIMEOUT = 12000, BUTTON_SIZE = 60, BUTTON_FADE_SPEED = 0.05, MAX_HOLD_TIME = 3000;
@@ -77,8 +77,8 @@ let BUTTON_STROKE_BLEND_MODE;                 // <-- THAM SỐ MỚI: BLENDING M
 
 
 // --- TEXT & MESSAGE CONTROL ---
-const TEXT_FONT_SIZE = 45;
-const TEXT_SAMPLE_FACTOR = 0.3;
+const TEXT_FONT_SIZE = 70;
+const TEXT_SAMPLE_FACTOR = 0.35;
 const TEXT_OPACITY = 100;
 const TEXT_BREATHING_MIN_SIZE = 2.5;
 const TEXT_BREATHING_MAX_SIZE = 4.0;
